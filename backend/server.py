@@ -638,6 +638,7 @@ class DevPilotHandler(BaseHTTPRequestHandler):
             return self._send_json(404, {"error": "Endpoint not found"})
 
 def run_server(port: int = 5050):
+    ThreadingHTTPServer.allow_reuse_address = True
     server = ThreadingHTTPServer(("127.0.0.1", port), DevPilotHandler)
     print(f"[DevPilot Python Engine] Online at http://127.0.0.1:{port} (PID: {os.getpid()})")
     try:

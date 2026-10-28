@@ -9,19 +9,22 @@ import {
   Code2, 
   Copy, 
   Check,
-  Cpu
+  Cpu,
+  Smartphone,
+  Tablet,
+  Laptop,
+  Globe,
+  Server
 } from 'lucide-react';
 import { PythonExecutionResult } from '../types';
+import { runPythonCode } from '../services/pythonRunner';
 
 interface PythonSandboxProps {
-  onExecutePython: (code: string) => Promise<PythonExecutionResult>;
-  isExecuting: boolean;
+  onExecutePython?: (code: string) => Promise<PythonExecutionResult>;
+  isExecuting?: boolean;
 }
 
-export const PythonSandbox: React.FC<PythonSandboxProps> = ({
-  onExecutePython,
-  isExecuting,
-}) => {
+export const PythonSandbox: React.FC<PythonSandboxProps> = () => {
   const templates = [
     {
       id: 'ast_analyzer',
@@ -122,13 +125,30 @@ print("Status: Stable SLA bounds verified.")`
   ];
 
   const [activeCode, setActiveCode] = useState(templates[0].code);
-  const [result, setResult] = useState<PythonExecutionResult | null>(null);
+  const [engineMode, setEngineMode] = useState<'auto' | 'server' | 'wasm'>('auto');
+  const [result, setResult] = useState<(PythonExecutionResult & { engine?: string }) | null>(null);
+  const [isExecuting, setIsExecuting] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleRun = async () => {
     if (isExecuting) return;
-    const res = await onExecutePython(activeCode);
-    setResult(res);
+    setIsExecuting(true);
+    try {
+      const res = await runPythonCode(activeCode, engineMode);
+      setResult(res);
+    } catch (err: any) {
+      setResult({
+        success: false,
+        stdout: '',
+        stderr: err.message || 'Execution failed',
+        returncode: 1,
+        execution_time_ms: 0,
+        ast_valid: false,
+        engine: 'error',
+      });
+    } finally {
+      setIsExecuting(false);
+    }
   };
 
   const handleCopy = () => {
@@ -140,41 +160,101 @@ print("Status: Stable SLA bounds verified.")`
   return (
     <div className="space-y-6">
       
+      {/* Universal Device Compatibility Banner */}
+      <div className="rounded-lg p-3 bg-[#111827] border border-[#10B981]/30 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+        <div className="flex items-center gap-2 text-[#34D399]">
+          <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
+          <span className="font-semibold">Universal Device Execution Ready</span>
+        </div>
+        <div className="flex items-center gap-3 text-[#94A3B8] text-[11px]">
+          <span className="flex items-center gap-1 text-[#CBD5E1]">
+            <Laptop className="w-3.5 h-3.5 text-[#0EA5E9]" /> Laptop
+          </span>
+          <span>•</span>
+          <span className="flex items-center gap-1 text-[#CBD5E1]">
+            <Tablet className="w-3.5 h-3.5 text-[#38BDF8]" /> Tablet / iPad
+          </span>
+          <span>•</span>
+          <span className="flex items-center gap-1 text-[#CBD5E1]">
+            <Smartphone className="w-3.5 h-3.5 text-[#10B981]" /> Android / iOS
+          </span>
+        </div>
+      </div>
+
       {/* Sandbox Header */}
       <div className="glass-panel rounded-lg p-5 border border-white/[0.08] flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-[#0EA5E9]/15 text-[#38BDF8] border border-[#0EA5E9]/30 font-bold flex items-center gap-1.5">
               <Cpu className="w-3.5 h-3.5 text-[#0EA5E9]" />
-              SUBPROCESS ENGINE
+              UNIVERSAL PYTHON ENGINE
             </span>
-            <span className="font-mono text-xs text-[#94A3B8]">• Python 3.10 Sandboxed Runtime</span>
+            <span className="font-mono text-xs text-[#94A3B8]">• Python 3 Standard Runtime & WASM</span>
           </div>
           <h2 className="text-xl font-headline font-bold text-white tracking-tight">
-            Live Python Execution Sandbox
+            Universal Python Execution Sandbox
           </h2>
           <p className="text-xs text-[#94A3B8] mt-0.5 max-w-xl">
-            Test and benchmark Python logic directly on the DevPilot backend with AST syntax validation, stdout/stderr capture, and sub-millisecond execution timing.
+            Execute code across any device. Automatic dual-dispatch seamlessly routes between server-side Python 3 and client-side device WebAssembly.
           </p>
         </div>
 
-        <button
-          onClick={handleRun}
-          disabled={isExecuting}
-          className="px-5 py-2.5 rounded bg-gradient-to-r from-[#0EA5E9] to-[#0284C7] text-[#0B0F17] font-headline font-semibold text-xs flex items-center gap-2 shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 shrink-0"
-        >
-          {isExecuting ? (
-            <>
-              <span className="h-4 w-4 rounded-full border-2 border-[#0B0F17] border-t-transparent animate-spin" />
-              <span>Executing Script...</span>
-            </>
-          ) : (
-            <>
-              <Play className="w-4 h-4 text-[#0B0F17] fill-current" />
-              <span>Run Python Code</span>
-            </>
-          )}
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Engine Selector */}
+          <div className="flex items-center bg-[#0B0F17] p-1 rounded-md border border-white/[0.08] text-xs font-mono">
+            <button
+              onClick={() => setEngineMode('auto')}
+              className={`px-2.5 py-1 rounded transition-colors ${
+                engineMode === 'auto'
+                  ? 'bg-[#1E293B] text-[#38BDF8] border border-[#0EA5E9]/40 font-semibold'
+                  : 'text-[#94A3B8] hover:text-white'
+              }`}
+              title="Auto-adaptive: routes to Server or Device WASM"
+            >
+              Auto (Server + WASM)
+            </button>
+            <button
+              onClick={() => setEngineMode('wasm')}
+              className={`px-2.5 py-1 rounded transition-colors ${
+                engineMode === 'wasm'
+                  ? 'bg-[#1E293B] text-[#10B981] border border-[#10B981]/40 font-semibold'
+                  : 'text-[#94A3B8] hover:text-white'
+              }`}
+              title="Runs 100% on this device in WebAssembly (No server needed)"
+            >
+              Device WASM
+            </button>
+            <button
+              onClick={() => setEngineMode('server')}
+              className={`px-2.5 py-1 rounded transition-colors ${
+                engineMode === 'server'
+                  ? 'bg-[#1E293B] text-[#F59E0B] border border-[#F59E0B]/40 font-semibold'
+                  : 'text-[#94A3B8] hover:text-white'
+              }`}
+              title="Direct DevPilot Server Python"
+            >
+              Server Py
+            </button>
+          </div>
+
+          <button
+            onClick={handleRun}
+            disabled={isExecuting}
+            className="px-5 py-2.5 rounded bg-gradient-to-r from-[#0EA5E9] to-[#0284C7] text-[#0B0F17] font-headline font-semibold text-xs flex items-center gap-2 shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 shrink-0"
+          >
+            {isExecuting ? (
+              <>
+                <span className="h-4 w-4 rounded-full border-2 border-[#0B0F17] border-t-transparent animate-spin" />
+                <span>Executing Script...</span>
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4 text-[#0B0F17] fill-current" />
+                <span>Run Python Code</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Preset Selector */}
@@ -247,6 +327,17 @@ print("Status: Stable SLA bounds verified.")`
             </div>
             {result && (
               <div className="flex items-center gap-2 text-xs font-mono">
+                {/* Engine Source Badge */}
+                {result.engine && (
+                  <span className={`px-1.5 py-0.2 rounded text-[10px] uppercase font-bold flex items-center gap-1 ${
+                    result.engine === 'server'
+                      ? 'bg-[#0EA5E9]/20 text-[#38BDF8] border border-[#0EA5E9]/30'
+                      : 'bg-[#10B981]/20 text-[#34D399] border border-[#10B981]/30'
+                  }`}>
+                    {result.engine === 'server' ? <Server className="w-3 h-3" /> : <Globe className="w-3 h-3" />}
+                    {result.engine === 'server' ? 'Server Python' : 'Device WASM'}
+                  </span>
+                )}
                 <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
                   result.success 
                     ? 'bg-[#10B981]/20 text-[#34D399] border border-[#10B981]/30' 
@@ -284,8 +375,8 @@ print("Status: Stable SLA bounds verified.")`
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center text-[#94A3B8] py-12">
                 <Terminal className="w-8 h-8 text-[#94A3B8]/40 mb-2" />
-                <p className="text-xs">Console is awaiting execution.</p>
-                <p className="text-[11px] text-[#88929B] mt-1">Click "Run Python Code" to execute on the backend.</p>
+                <p className="text-xs">Ready for execution on this device.</p>
+                <p className="text-[11px] text-[#88929B] mt-1">Click "Run Python Code" to execute immediately.</p>
               </div>
             )}
           </div>
