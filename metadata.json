@@ -1,0 +1,7 @@
+{
+  "name": "DevPilot — Autonomous Code Engine & Deployment Telemetry",
+  "description": "Precision developer control plane for autonomous code agents, real-time diff verification, sandboxed Python code execution, and deployment pipeline telemetry.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
